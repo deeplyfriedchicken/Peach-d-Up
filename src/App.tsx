@@ -7,6 +7,8 @@ import { OverlayEditor } from "./components/OverlayEditor";
 import { ControlPanel } from "./components/ControlPanel";
 import { OverlayInputs } from "./components/OverlayInputs";
 import { ExportPanel } from "./components/ExportPanel";
+import { TabBar } from "./components/TabBar";
+import { SummaryInputs } from "./components/SummaryInputs";
 
 export const App: React.FC = () => {
   const [state, dispatch] = useOverlayState();
@@ -66,44 +68,47 @@ export const App: React.FC = () => {
 
   return (
     <div
+      className="drag"
       style={{
         display: "flex",
         height: "100vh",
         background: "#111",
         color: "#eee",
         fontFamily: "'Inter', -apple-system, sans-serif",
-        WebkitAppRegion: "drag" as any,
       }}
     >
       {/* Left: Player */}
       <div
+        className="no-drag"
         style={{
           flex: 1,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           padding: 24,
-          WebkitAppRegion: "no-drag" as any,
         }}
       >
         <div style={{ position: "relative", width: "100%", maxWidth: 900 }}>
           <PlayerPreview state={state} playerRef={playerRef} />
-          <OverlayEditor
-            overlayX={state.overlayX}
-            overlayY={state.overlayY}
-            overlayWidth={state.overlayWidth}
-            overlayHeight={state.overlayHeight}
-            overlaySrc={state.overlaySrc}
-            visible={!!overlayVisible}
-            opacity={overlayOpacity}
-            onPositionChange={(x, y) => dispatch({ type: "SET_OVERLAY_POSITION", x, y })}
-            onSizeChange={(w, h) => dispatch({ type: "SET_OVERLAY_SIZE", width: w, height: h })}
-          />
+          {state.activeTab === "overlay" && (
+            <OverlayEditor
+              overlayX={state.overlayX}
+              overlayY={state.overlayY}
+              overlayWidth={state.overlayWidth}
+              overlayHeight={state.overlayHeight}
+              overlaySrc={state.overlaySrc}
+              visible={!!overlayVisible}
+              opacity={overlayOpacity}
+              onPositionChange={(x, y) => dispatch({ type: "SET_OVERLAY_POSITION", x, y })}
+              onSizeChange={(w, h) => dispatch({ type: "SET_OVERLAY_SIZE", width: w, height: h })}
+            />
+          )}
         </div>
       </div>
 
       {/* Right: Sidebar */}
       <div
+        className="no-drag"
         style={{
           width: 280,
           borderLeft: "1px solid #2a2a2a",
@@ -112,38 +117,67 @@ export const App: React.FC = () => {
           flexDirection: "column",
           gap: 28,
           overflowY: "auto",
-          WebkitAppRegion: "no-drag" as any,
         }}
       >
-        <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Overlay Editor</h1>
-
-        <FileSelector
-          videoFilePath={state.videoFilePath}
-          overlayFilePath={state.overlayFilePath}
-          onVideoSelect={handleSelectVideo}
-          onOverlaySelect={handleSelectOverlay}
+        <TabBar
+          activeTab={state.activeTab}
+          onTabChange={(tab) => {
+            dispatch({ type: "SET_ACTIVE_TAB", tab });
+            setCurrentFrame(0);
+          }}
         />
 
-        {state.overlaySrc && (
-          <OverlayInputs
-            overlayX={state.overlayX}
-            overlayY={state.overlayY}
-            overlayWidth={state.overlayWidth}
-            overlayHeight={state.overlayHeight}
-            overlayAspect={state.overlayAspect}
-            onPositionChange={(x, y) => dispatch({ type: "SET_OVERLAY_POSITION", x, y })}
-            onSizeChange={(w, h) => dispatch({ type: "SET_OVERLAY_SIZE", width: w, height: h })}
-          />
+        {state.activeTab === "overlay" && (
+          <>
+            <FileSelector
+              videoFilePath={state.videoFilePath}
+              overlayFilePath={state.overlayFilePath}
+              onVideoSelect={handleSelectVideo}
+              onOverlaySelect={handleSelectOverlay}
+            />
+
+            {state.overlaySrc && (
+              <OverlayInputs
+                overlayX={state.overlayX}
+                overlayY={state.overlayY}
+                overlayWidth={state.overlayWidth}
+                overlayHeight={state.overlayHeight}
+                overlayAspect={state.overlayAspect}
+                onPositionChange={(x, y) => dispatch({ type: "SET_OVERLAY_POSITION", x, y })}
+                onSizeChange={(w, h) => dispatch({ type: "SET_OVERLAY_SIZE", width: w, height: h })}
+              />
+            )}
+
+            {state.videoSrc && (
+              <ControlPanel
+                overlayDuration={state.overlayDuration}
+                fadeDuration={state.fadeDuration}
+                videoDuration={state.videoDuration}
+                onOverlayDurationChange={(d) => dispatch({ type: "SET_OVERLAY_DURATION", duration: d })}
+                onFadeDurationChange={(d) => dispatch({ type: "SET_FADE_DURATION", duration: d })}
+              />
+            )}
+          </>
         )}
 
-        {state.videoSrc && (
-          <ControlPanel
-            overlayDuration={state.overlayDuration}
-            fadeDuration={state.fadeDuration}
-            videoDuration={state.videoDuration}
-            onOverlayDurationChange={(d) => dispatch({ type: "SET_OVERLAY_DURATION", duration: d })}
-            onFadeDurationChange={(d) => dispatch({ type: "SET_FADE_DURATION", duration: d })}
-          />
+        {state.activeTab === "summary" && (
+          <>
+            <FileSelector
+              videoFilePath={state.videoFilePath}
+              overlayFilePath={state.overlayFilePath}
+              onVideoSelect={handleSelectVideo}
+              onOverlaySelect={handleSelectOverlay}
+            />
+
+            <SummaryInputs
+              items={state.summaryItems}
+              summaryDuration={state.summaryDuration}
+              onAddItem={() => dispatch({ type: "ADD_SUMMARY_ITEM" })}
+              onRemoveItem={(id) => dispatch({ type: "REMOVE_SUMMARY_ITEM", id })}
+              onUpdateItem={(id, emoji, text) => dispatch({ type: "UPDATE_SUMMARY_ITEM", id, emoji, text })}
+              onDurationChange={(d) => dispatch({ type: "SET_SUMMARY_DURATION", duration: d })}
+            />
+          </>
         )}
 
         <ExportPanel state={state} disabled={!state.videoSrc} />

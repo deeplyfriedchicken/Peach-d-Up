@@ -3,6 +3,7 @@ productName: TBD Fit Overlay Editor
 directories:
   output: release
   buildResources: build
+asar: false
 files:
   - dist/**/*
   - electron-dist/**/*.js
@@ -10,6 +11,7 @@ files:
   - package.json
   - remotion.config.ts
   - node_modules/**/*
+afterPack: ./scripts/fix-remotion-dylibs.js
 mac:
   category: public.app-category.video
   target:

@@ -25,6 +25,9 @@ export interface OverlayConfig {
 
 export interface ExportConfig extends OverlayConfig {
   outputPath: string;
+  summaryEnabled: boolean;
+  summaryItems: Array<{ id: string; emoji: string; text: string }>;
+  summaryDuration: number;
 }
 
 declare global {

@@ -27,6 +27,7 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({ state, disabled }) => 
     setExporting(true);
     setProgress(0);
 
+    const summaryEnabled = state.summaryItems.length > 0;
     const result = await window.electronAPI.exportVideo({
       videoSrc: state.videoSrc!,
       overlaySrc: state.overlaySrc || "",
@@ -41,6 +42,9 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({ state, disabled }) => 
       videoDuration: state.videoDuration,
       fps: state.fps,
       outputPath,
+      summaryEnabled,
+      summaryItems: state.summaryItems,
+      summaryDuration: state.summaryDuration,
     });
 
     setExporting(false);

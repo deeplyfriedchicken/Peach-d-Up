@@ -1,5 +1,11 @@
 import { useReducer } from "react";
 
+export interface SummaryItem {
+  id: string;
+  emoji: string;
+  text: string;
+}
+
 export interface OverlayState {
   videoSrc: string | null;
   videoFilePath: string | null;
@@ -17,6 +23,9 @@ export interface OverlayState {
   videoHeight: number;
   videoDuration: number;
   fps: number;
+  activeTab: "overlay" | "summary";
+  summaryItems: SummaryItem[];
+  summaryDuration: number;
 }
 
 type Action =
@@ -27,7 +36,12 @@ type Action =
   | { type: "SET_OVERLAY_DURATION"; duration: number }
   | { type: "SET_FADE_DURATION"; duration: number }
   | { type: "SET_VIDEO_META"; width: number; height: number; duration: number; fps: number }
-  | { type: "SET_OVERLAY_NATURAL_SIZE"; imgWidth: number; imgHeight: number };
+  | { type: "SET_OVERLAY_NATURAL_SIZE"; imgWidth: number; imgHeight: number }
+  | { type: "SET_ACTIVE_TAB"; tab: "overlay" | "summary" }
+  | { type: "ADD_SUMMARY_ITEM" }
+  | { type: "REMOVE_SUMMARY_ITEM"; id: string }
+  | { type: "UPDATE_SUMMARY_ITEM"; id: string; emoji?: string; text?: string }
+  | { type: "SET_SUMMARY_DURATION"; duration: number };
 
 const initialState: OverlayState = {
   videoSrc: null,
@@ -45,6 +59,9 @@ const initialState: OverlayState = {
   videoHeight: 1080,
   videoDuration: 10,
   fps: 30,
+  activeTab: "overlay",
+  summaryItems: [],
+  summaryDuration: 5,
 };
 
 function reducer(state: OverlayState, action: Action): OverlayState {
@@ -84,6 +101,29 @@ function reducer(state: OverlayState, action: Action): OverlayState {
         overlayY: 0,
       };
     }
+    case "SET_ACTIVE_TAB":
+      return { ...state, activeTab: action.tab };
+    case "ADD_SUMMARY_ITEM":
+      return {
+        ...state,
+        summaryItems: [...state.summaryItems, { id: crypto.randomUUID(), emoji: "", text: "" }],
+      };
+    case "REMOVE_SUMMARY_ITEM":
+      return {
+        ...state,
+        summaryItems: state.summaryItems.filter((item) => item.id !== action.id),
+      };
+    case "UPDATE_SUMMARY_ITEM":
+      return {
+        ...state,
+        summaryItems: state.summaryItems.map((item) =>
+          item.id === action.id
+            ? { ...item, ...(action.emoji !== undefined && { emoji: action.emoji }), ...(action.text !== undefined && { text: action.text }) }
+            : item
+        ),
+      };
+    case "SET_SUMMARY_DURATION":
+      return { ...state, summaryDuration: action.duration };
     default:
       return state;
   }

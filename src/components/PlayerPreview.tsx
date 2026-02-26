@@ -1,6 +1,7 @@
 import React from "react";
 import { Player } from "@remotion/player";
 import { VideoOverlay } from "../Composition";
+import { SummarySlide } from "./SummarySlide";
 import type { OverlayState } from "../hooks/useOverlayState";
 
 interface PlayerPreviewProps {
@@ -9,6 +10,31 @@ interface PlayerPreviewProps {
 }
 
 export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ state, playerRef }) => {
+  if (state.activeTab === "summary") {
+    const durationInFrames = Math.max(1, Math.round(state.summaryDuration * state.fps));
+
+    return (
+      <Player
+        ref={playerRef}
+        component={SummarySlide}
+        compositionWidth={state.videoWidth}
+        compositionHeight={state.videoHeight}
+        durationInFrames={durationInFrames}
+        fps={state.fps}
+        style={{
+          width: "100%",
+          maxHeight: "calc(100vh - 80px)",
+          borderRadius: 12,
+          overflow: "hidden",
+        }}
+        controls
+        inputProps={{
+          items: state.summaryItems,
+        }}
+      />
+    );
+  }
+
   if (!state.videoSrc) {
     return (
       <div
