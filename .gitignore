@@ -3,5 +3,9 @@ dist
 .DS_Store
 .env
 
+# Electron build output
+electron-dist/
+release/
+
 # Ignore the output video from Git but not videos you import into src/.
 out

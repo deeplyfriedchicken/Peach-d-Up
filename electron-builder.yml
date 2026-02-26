@@ -1,0 +1,25 @@
+appId: com.tbdfit.overlay-editor
+productName: TBD Fit Overlay Editor
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - electron-dist/**/*.js
+  - src/**/*
+  - package.json
+  - remotion.config.ts
+  - node_modules/**/*
+mac:
+  category: public.app-category.video
+  target:
+    - dmg
+  artifactName: "${productName}-${version}.${ext}"
+dmg:
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
