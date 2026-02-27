@@ -44,8 +44,8 @@ export const RemotionRoot: React.FC = () => {
         width={1920}
         height={1080}
         defaultProps={{
-          videoOverlayProps: {
-            videoSrc: "",
+          clips: [],
+          overlayProps: {
             overlaySrc: "",
             overlayX: 5,
             overlayY: 5,
@@ -54,7 +54,6 @@ export const RemotionRoot: React.FC = () => {
             overlayDuration: 5,
             fadeDuration: 1,
           },
-          videoDurationInFrames: 300,
           summarySlideProps: { items: [] },
           summaryDurationInFrames: 150,
           summaryEnabled: false,

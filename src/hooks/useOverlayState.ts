@@ -6,36 +6,60 @@ export interface SummaryItem {
   text: string;
 }
 
+export interface Clip {
+  id: string;
+  filePath: string;
+  src: string;
+  width: number;
+  height: number;
+  duration: number;
+  fps: number;
+  crossfadeDuration: number;
+}
+
 export interface OverlayState {
-  videoSrc: string | null;
-  videoFilePath: string | null;
+  clips: Clip[];
   overlaySrc: string | null;
   overlayFilePath: string | null;
   overlayX: number;
   overlayY: number;
   overlayWidth: number;
   overlayHeight: number;
-  /** Image aspect ratio (height/width) adjusted for video aspect, used to keep size proportional */
   overlayAspect: number;
   overlayDuration: number;
   fadeDuration: number;
   videoWidth: number;
   videoHeight: number;
-  videoDuration: number;
   fps: number;
   activeTab: "overlay" | "summary";
   summaryItems: SummaryItem[];
   summaryDuration: number;
 }
 
+export function totalVideoDuration(clips: Clip[]): number {
+  if (clips.length === 0) return 0;
+  let total = 0;
+  for (let i = 0; i < clips.length; i++) {
+    total += clips[i].duration;
+    if (i > 0) {
+      total -= clips[i].crossfadeDuration;
+    }
+  }
+  return Math.max(0, total);
+}
+
 type Action =
-  | { type: "SET_VIDEO"; src: string; filePath: string }
+  | { type: "ADD_CLIPS"; clips: Array<{ id: string; filePath: string; src: string }> }
+  | { type: "SET_CLIP_META"; id: string; width: number; height: number; duration: number; fps: number }
+  | { type: "REMOVE_CLIP"; id: string }
+  | { type: "REORDER_CLIPS"; fromIndex: number; toIndex: number }
+  | { type: "SET_CLIP_CROSSFADE"; id: string; crossfadeDuration: number }
   | { type: "SET_OVERLAY"; src: string; filePath: string }
+  | { type: "CLEAR_OVERLAY" }
   | { type: "SET_OVERLAY_POSITION"; x: number; y: number }
   | { type: "SET_OVERLAY_SIZE"; width: number; height: number }
   | { type: "SET_OVERLAY_DURATION"; duration: number }
   | { type: "SET_FADE_DURATION"; duration: number }
-  | { type: "SET_VIDEO_META"; width: number; height: number; duration: number; fps: number }
   | { type: "SET_OVERLAY_NATURAL_SIZE"; imgWidth: number; imgHeight: number }
   | { type: "SET_ACTIVE_TAB"; tab: "overlay" | "summary" }
   | { type: "ADD_SUMMARY_ITEM" }
@@ -44,8 +68,7 @@ type Action =
   | { type: "SET_SUMMARY_DURATION"; duration: number };
 
 const initialState: OverlayState = {
-  videoSrc: null,
-  videoFilePath: null,
+  clips: [],
   overlaySrc: null,
   overlayFilePath: null,
   overlayX: 0,
@@ -57,19 +80,74 @@ const initialState: OverlayState = {
   fadeDuration: 1,
   videoWidth: 1920,
   videoHeight: 1080,
-  videoDuration: 10,
   fps: 30,
   activeTab: "overlay",
   summaryItems: [],
   summaryDuration: 5,
 };
 
+function deriveDimsFromFirstClip(clips: Clip[], state: OverlayState): Partial<OverlayState> {
+  if (clips.length === 0) return {};
+  const first = clips[0];
+  if (first.width > 0 && first.height > 0) {
+    return { videoWidth: first.width, videoHeight: first.height, fps: first.fps || state.fps };
+  }
+  return {};
+}
+
 function reducer(state: OverlayState, action: Action): OverlayState {
   switch (action.type) {
-    case "SET_VIDEO":
-      return { ...state, videoSrc: action.src, videoFilePath: action.filePath };
+    case "ADD_CLIPS": {
+      const newClips: Clip[] = action.clips.map((c) => ({
+        id: c.id,
+        filePath: c.filePath,
+        src: c.src,
+        width: 0,
+        height: 0,
+        duration: 0,
+        fps: 0,
+        crossfadeDuration: 0.5,
+      }));
+      const allClips = [...state.clips, ...newClips];
+      return { ...state, clips: allClips, ...deriveDimsFromFirstClip(allClips, state) };
+    }
+    case "SET_CLIP_META": {
+      const clips = state.clips.map((c) =>
+        c.id === action.id
+          ? { ...c, width: action.width, height: action.height, duration: action.duration, fps: action.fps }
+          : c
+      );
+      const dims = deriveDimsFromFirstClip(clips, state);
+      const total = totalVideoDuration(clips);
+      return {
+        ...state,
+        clips,
+        ...dims,
+        overlayDuration: Math.min(state.overlayDuration, total > 0 ? total : state.overlayDuration),
+      };
+    }
+    case "REMOVE_CLIP": {
+      const clips = state.clips.filter((c) => c.id !== action.id);
+      const dims = deriveDimsFromFirstClip(clips, state);
+      return { ...state, clips, ...dims };
+    }
+    case "REORDER_CLIPS": {
+      const clips = [...state.clips];
+      const [moved] = clips.splice(action.fromIndex, 1);
+      clips.splice(action.toIndex, 0, moved);
+      const dims = deriveDimsFromFirstClip(clips, state);
+      return { ...state, clips, ...dims };
+    }
+    case "SET_CLIP_CROSSFADE": {
+      const clips = state.clips.map((c) =>
+        c.id === action.id ? { ...c, crossfadeDuration: action.crossfadeDuration } : c
+      );
+      return { ...state, clips };
+    }
     case "SET_OVERLAY":
       return { ...state, overlaySrc: action.src, overlayFilePath: action.filePath };
+    case "CLEAR_OVERLAY":
+      return { ...state, overlaySrc: null, overlayFilePath: null };
     case "SET_OVERLAY_POSITION":
       return { ...state, overlayX: action.x, overlayY: action.y };
     case "SET_OVERLAY_SIZE":
@@ -78,17 +156,7 @@ function reducer(state: OverlayState, action: Action): OverlayState {
       return { ...state, overlayDuration: action.duration };
     case "SET_FADE_DURATION":
       return { ...state, fadeDuration: action.duration };
-    case "SET_VIDEO_META":
-      return {
-        ...state,
-        videoWidth: action.width,
-        videoHeight: action.height,
-        videoDuration: action.duration,
-        fps: action.fps,
-        overlayDuration: Math.min(state.overlayDuration, action.duration),
-      };
     case "SET_OVERLAY_NATURAL_SIZE": {
-      // Fill video width, preserve aspect ratio, top-center
       const widthPct = 100;
       const aspectRatio = action.imgHeight / action.imgWidth;
       const heightPct = widthPct * aspectRatio * (state.videoWidth / state.videoHeight);

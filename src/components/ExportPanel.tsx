@@ -28,8 +28,15 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({ state, disabled }) => 
     setProgress(0);
 
     const summaryEnabled = state.summaryItems.length > 0;
+    const clips = state.clips.map((c) => ({
+      id: c.id,
+      src: c.src,
+      duration: c.duration,
+      crossfadeDuration: c.crossfadeDuration,
+    }));
+
     const result = await window.electronAPI.exportVideo({
-      videoSrc: state.videoSrc!,
+      clips,
       overlaySrc: state.overlaySrc || "",
       overlayX: state.overlayX,
       overlayY: state.overlayY,
@@ -39,7 +46,6 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({ state, disabled }) => 
       fadeDuration: state.fadeDuration,
       videoWidth: state.videoWidth,
       videoHeight: state.videoHeight,
-      videoDuration: state.videoDuration,
       fps: state.fps,
       outputPath,
       summaryEnabled,

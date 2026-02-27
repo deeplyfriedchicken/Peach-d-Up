@@ -1,7 +1,9 @@
 import React, { useCallback, useRef, useState, useEffect } from "react";
-import { useOverlayState } from "./hooks/useOverlayState";
-import { useVideoMeta } from "./hooks/useVideoMeta";
+import { useOverlayState, totalVideoDuration } from "./hooks/useOverlayState";
+import { useClipsMeta } from "./hooks/useVideoMeta";
 import { FileSelector } from "./components/FileSelector";
+import { ClipList } from "./components/ClipList";
+import { ClipTimeline } from "./components/ClipTimeline";
 import { PlayerPreview } from "./components/PlayerPreview";
 import { OverlayEditor } from "./components/OverlayEditor";
 import { ControlPanel } from "./components/ControlPanel";
@@ -15,6 +17,8 @@ export const App: React.FC = () => {
   const playerRef = useRef<any>(null);
   const [currentFrame, setCurrentFrame] = useState(0);
 
+  const videoDuration = totalVideoDuration(state.clips);
+
   useEffect(() => {
     const player = playerRef.current;
     if (!player) return;
@@ -23,7 +27,7 @@ export const App: React.FC = () => {
     };
     player.addEventListener("timeupdate", handler);
     return () => player.removeEventListener("timeupdate", handler);
-  }, [state.videoSrc]);
+  }, [state.clips.length]);
 
   const overlayEndFrame = state.overlayDuration * state.fps;
   const fadeStartFrame = overlayEndFrame - state.fadeDuration * state.fps;
@@ -36,15 +40,20 @@ export const App: React.FC = () => {
     overlayOpacity = (overlayEndFrame - currentFrame) / (overlayEndFrame - fadeStartFrame);
   }
 
-  useVideoMeta(state.videoSrc, (meta) => {
-    dispatch({ type: "SET_VIDEO_META", ...meta });
+  useClipsMeta(state.clips, (id, meta) => {
+    dispatch({ type: "SET_CLIP_META", id, ...meta });
   });
 
-  const handleSelectVideo = useCallback(async () => {
+  const handleAddClips = useCallback(async () => {
     if (!window.electronAPI) return;
     const result = await window.electronAPI.selectVideo();
     if (result) {
-      dispatch({ type: "SET_VIDEO", src: result.url, filePath: result.filePath });
+      const clips = result.map((r) => ({
+        id: crypto.randomUUID(),
+        filePath: r.filePath,
+        src: r.url,
+      }));
+      dispatch({ type: "ADD_CLIPS", clips });
     }
   }, [dispatch]);
 
@@ -53,7 +62,6 @@ export const App: React.FC = () => {
     const result = await window.electronAPI.selectPng();
     if (result) {
       dispatch({ type: "SET_OVERLAY", src: result.url, filePath: result.filePath });
-      // Load image natural dimensions to auto-size the overlay
       const img = new Image();
       img.onload = () => {
         dispatch({
@@ -66,20 +74,31 @@ export const App: React.FC = () => {
     }
   }, [dispatch]);
 
+  const totalFrames = Math.max(1, Math.round(videoDuration * state.fps));
+
   return (
     <div
-      className="drag"
       style={{
         display: "flex",
+        flexDirection: "column",
         height: "100vh",
         background: "#111",
         color: "#eee",
         fontFamily: "'Inter', -apple-system, sans-serif",
       }}
     >
+      {/* Title bar drag region */}
+      <div
+        className="drag"
+        style={{
+          height: 38,
+          flexShrink: 0,
+        }}
+      />
+
+      <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
       {/* Left: Player */}
       <div
-        className="no-drag"
         style={{
           flex: 1,
           display: "flex",
@@ -101,6 +120,14 @@ export const App: React.FC = () => {
               opacity={overlayOpacity}
               onPositionChange={(x, y) => dispatch({ type: "SET_OVERLAY_POSITION", x, y })}
               onSizeChange={(w, h) => dispatch({ type: "SET_OVERLAY_SIZE", width: w, height: h })}
+            />
+          )}
+          {state.activeTab === "overlay" && state.clips.length > 0 && (
+            <ClipTimeline
+              clips={state.clips}
+              fps={state.fps}
+              totalDurationInFrames={totalFrames}
+              currentFrame={currentFrame}
             />
           )}
         </div>
@@ -129,11 +156,18 @@ export const App: React.FC = () => {
 
         {state.activeTab === "overlay" && (
           <>
+            <ClipList
+              clips={state.clips}
+              onAddClips={handleAddClips}
+              onRemoveClip={(id) => dispatch({ type: "REMOVE_CLIP", id })}
+              onReorderClips={(from, to) => dispatch({ type: "REORDER_CLIPS", fromIndex: from, toIndex: to })}
+              onCrossfadeChange={(id, dur) => dispatch({ type: "SET_CLIP_CROSSFADE", id, crossfadeDuration: dur })}
+            />
+
             <FileSelector
-              videoFilePath={state.videoFilePath}
               overlayFilePath={state.overlayFilePath}
-              onVideoSelect={handleSelectVideo}
               onOverlaySelect={handleSelectOverlay}
+              onOverlayClear={() => dispatch({ type: "CLEAR_OVERLAY" })}
             />
 
             {state.overlaySrc && (
@@ -148,11 +182,11 @@ export const App: React.FC = () => {
               />
             )}
 
-            {state.videoSrc && (
+            {state.clips.length > 0 && (
               <ControlPanel
                 overlayDuration={state.overlayDuration}
                 fadeDuration={state.fadeDuration}
-                videoDuration={state.videoDuration}
+                videoDuration={videoDuration}
                 onOverlayDurationChange={(d) => dispatch({ type: "SET_OVERLAY_DURATION", duration: d })}
                 onFadeDurationChange={(d) => dispatch({ type: "SET_FADE_DURATION", duration: d })}
               />
@@ -162,13 +196,6 @@ export const App: React.FC = () => {
 
         {state.activeTab === "summary" && (
           <>
-            <FileSelector
-              videoFilePath={state.videoFilePath}
-              overlayFilePath={state.overlayFilePath}
-              onVideoSelect={handleSelectVideo}
-              onOverlaySelect={handleSelectOverlay}
-            />
-
             <SummaryInputs
               items={state.summaryItems}
               summaryDuration={state.summaryDuration}
@@ -180,7 +207,8 @@ export const App: React.FC = () => {
           </>
         )}
 
-        <ExportPanel state={state} disabled={!state.videoSrc} />
+        <ExportPanel state={state} disabled={state.clips.length === 0} />
+      </div>
       </div>
     </div>
   );

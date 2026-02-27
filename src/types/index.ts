@@ -1,5 +1,12 @@
+export interface ClipConfig {
+  id: string;
+  src: string;
+  duration: number;
+  crossfadeDuration: number;
+}
+
 export interface OverlayConfig {
-  videoSrc: string;
+  clips: ClipConfig[];
   overlaySrc: string;
   /** Overlay X position as percentage of video width (0-100) */
   overlayX: number;
@@ -13,13 +20,11 @@ export interface OverlayConfig {
   overlayDuration: number;
   /** Fade-out duration in seconds */
   fadeDuration: number;
-  /** Video width in pixels */
+  /** Video width in pixels (derived from first clip) */
   videoWidth: number;
-  /** Video height in pixels */
+  /** Video height in pixels (derived from first clip) */
   videoHeight: number;
-  /** Video duration in seconds */
-  videoDuration: number;
-  /** Video FPS */
+  /** Video FPS (derived from first clip) */
   fps: number;
 }
 
@@ -33,7 +38,7 @@ export interface ExportConfig extends OverlayConfig {
 declare global {
   interface Window {
     electronAPI: {
-      selectVideo: () => Promise<{ filePath: string; url: string } | null>;
+      selectVideo: () => Promise<Array<{ filePath: string; url: string }> | null>;
       selectPng: () => Promise<{ filePath: string; url: string } | null>;
       selectSavePath: () => Promise<string | null>;
       exportVideo: (config: ExportConfig) => Promise<{ success: boolean; error?: string }>;

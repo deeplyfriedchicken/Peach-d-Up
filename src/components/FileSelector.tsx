@@ -1,31 +1,32 @@
 import React from "react";
 
 interface FileSelectorProps {
-  videoFilePath: string | null;
   overlayFilePath: string | null;
-  onVideoSelect: () => void;
   onOverlaySelect: () => void;
+  onOverlayClear: () => void;
 }
 
 export const FileSelector: React.FC<FileSelectorProps> = ({
-  videoFilePath,
   overlayFilePath,
-  onVideoSelect,
   onOverlaySelect,
+  onOverlayClear,
 }) => {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <label style={{ fontSize: 12, fontWeight: 600, color: "#999", textTransform: "uppercase", letterSpacing: 1 }}>
-        Files
+        Overlay
       </label>
 
-      <button onClick={onVideoSelect} style={buttonStyle}>
-        {videoFilePath ? truncatePath(videoFilePath) : "Choose Video..."}
-      </button>
-
-      <button onClick={onOverlaySelect} style={buttonStyle}>
-        {overlayFilePath ? truncatePath(overlayFilePath) : "Choose PNG Overlay..."}
-      </button>
+      <div style={{ display: "flex", gap: 6 }}>
+        <button onClick={onOverlaySelect} style={{ ...buttonStyle, flex: 1 }}>
+          {overlayFilePath ? truncatePath(overlayFilePath) : "Choose PNG Overlay..."}
+        </button>
+        {overlayFilePath && (
+          <button onClick={onOverlayClear} style={clearButtonStyle} title="Clear overlay">
+            ✕
+          </button>
+        )}
+      </div>
     </div>
   );
 };
@@ -47,4 +48,16 @@ const buttonStyle: React.CSSProperties = {
   overflow: "hidden",
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
+};
+
+const clearButtonStyle: React.CSSProperties = {
+  padding: "0 10px",
+  background: "#2a2a2a",
+  border: "1px solid #444",
+  borderRadius: 8,
+  color: "#666",
+  cursor: "pointer",
+  fontSize: 14,
+  lineHeight: 1,
+  flexShrink: 0,
 };

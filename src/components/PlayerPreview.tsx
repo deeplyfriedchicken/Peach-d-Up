@@ -1,8 +1,9 @@
 import React from "react";
 import { Player } from "@remotion/player";
-import { VideoOverlay } from "../Composition";
+import { FinalVideo } from "../compositions/FinalVideo";
 import { SummarySlide } from "./SummarySlide";
 import type { OverlayState } from "../hooks/useOverlayState";
+import { totalVideoDuration } from "../hooks/useOverlayState";
 
 interface PlayerPreviewProps {
   state: OverlayState;
@@ -35,7 +36,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ state, playerRef }
     );
   }
 
-  if (!state.videoSrc) {
+  if (state.clips.length === 0) {
     return (
       <div
         style={{
@@ -51,20 +52,27 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ state, playerRef }
           fontSize: 16,
         }}
       >
-        Select a video to get started
+        Add clips to get started
       </div>
     );
   }
 
-  const durationInFrames = Math.max(1, Math.round(state.videoDuration * state.fps));
+  const totalSec = totalVideoDuration(state.clips);
+  const totalFrames = Math.max(1, Math.round(totalSec * state.fps));
+
+  const clips = state.clips.map((c) => ({
+    src: c.src,
+    durationInFrames: Math.max(1, Math.round(c.duration * state.fps)),
+    crossfadeDurationInFrames: Math.round(c.crossfadeDuration * state.fps),
+  }));
 
   return (
     <Player
       ref={playerRef}
-      component={VideoOverlay}
+      component={FinalVideo}
       compositionWidth={state.videoWidth}
       compositionHeight={state.videoHeight}
-      durationInFrames={durationInFrames}
+      durationInFrames={totalFrames}
       fps={state.fps}
       style={{
         width: "100%",
@@ -74,14 +82,19 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ state, playerRef }
       }}
       controls
       inputProps={{
-        videoSrc: state.videoSrc,
-        overlaySrc: "",
-        overlayX: state.overlayX,
-        overlayY: state.overlayY,
-        overlayWidth: state.overlayWidth,
-        overlayHeight: state.overlayHeight,
-        overlayDuration: state.overlayDuration,
-        fadeDuration: state.fadeDuration,
+        clips,
+        overlayProps: {
+          overlaySrc: "",
+          overlayX: state.overlayX,
+          overlayY: state.overlayY,
+          overlayWidth: state.overlayWidth,
+          overlayHeight: state.overlayHeight,
+          overlayDuration: state.overlayDuration,
+          fadeDuration: state.fadeDuration,
+        },
+        summarySlideProps: { items: [] },
+        summaryDurationInFrames: 0,
+        summaryEnabled: false,
       }}
     />
   );

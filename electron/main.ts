@@ -43,12 +43,13 @@ app.on("window-all-closed", () => {
 ipcMain.handle("select-video", async () => {
   const result = await dialog.showOpenDialog({
     filters: [{ name: "Video", extensions: ["mp4", "mov", "webm", "mkv"] }],
-    properties: ["openFile"],
+    properties: ["openFile", "multiSelections"],
   });
   if (result.canceled || result.filePaths.length === 0) return null;
-  const filePath = result.filePaths[0];
-  const url = registerFile(filePath, fileServerPort);
-  return { filePath, url };
+  return result.filePaths.map((fp) => ({
+    filePath: fp,
+    url: registerFile(fp, fileServerPort),
+  }));
 });
 
 ipcMain.handle("select-png", async () => {

@@ -19,6 +19,16 @@ export const OverlayInputs: React.FC<OverlayInputsProps> = ({
   onPositionChange,
   onSizeChange,
 }) => {
+  const alignH = (align: "left" | "center" | "right") => {
+    const x = align === "left" ? 0 : align === "right" ? 100 - overlayWidth : (100 - overlayWidth) / 2;
+    onPositionChange(Math.max(0, x), overlayY);
+  };
+
+  const alignV = (align: "top" | "middle" | "bottom") => {
+    const y = align === "top" ? 0 : align === "bottom" ? 100 - overlayHeight : (100 - overlayHeight) / 2;
+    onPositionChange(overlayX, Math.max(0, y));
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <label style={sectionLabel}>Position</label>
@@ -33,6 +43,21 @@ export const OverlayInputs: React.FC<OverlayInputsProps> = ({
           value={overlayY}
           onChange={(v) => onPositionChange(overlayX, v)}
         />
+      </div>
+
+      <label style={sectionLabel}>Align</label>
+      <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 4, flex: 1 }}>
+          <AlignButton label="L" title="Align left" onClick={() => alignH("left")} />
+          <AlignButton label="C" title="Center horizontally" onClick={() => alignH("center")} />
+          <AlignButton label="R" title="Align right" onClick={() => alignH("right")} />
+        </div>
+        <div style={{ width: 1, background: "#333" }} />
+        <div style={{ display: "flex", gap: 4, flex: 1 }}>
+          <AlignButton label="T" title="Align top" onClick={() => alignV("top")} />
+          <AlignButton label="M" title="Center vertically" onClick={() => alignV("middle")} />
+          <AlignButton label="B" title="Align bottom" onClick={() => alignV("bottom")} />
+        </div>
       </div>
 
       <label style={sectionLabel}>Size</label>
@@ -73,6 +98,31 @@ const InputField: React.FC<{
     />
     <span style={{ fontSize: 11, color: "#666" }}>%</span>
   </div>
+);
+
+const AlignButton: React.FC<{
+  label: string;
+  title: string;
+  onClick: () => void;
+}> = ({ label, title, onClick }) => (
+  <button
+    title={title}
+    onClick={onClick}
+    style={{
+      flex: 1,
+      padding: "6px 0",
+      background: "#2a2a2a",
+      border: "1px solid #444",
+      borderRadius: 6,
+      color: "#ccc",
+      cursor: "pointer",
+      fontSize: 11,
+      fontWeight: 600,
+      lineHeight: 1,
+    }}
+  >
+    {label}
+  </button>
 );
 
 const sectionLabel: React.CSSProperties = {

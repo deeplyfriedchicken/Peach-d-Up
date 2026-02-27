@@ -1,10 +1,16 @@
 import { bundle } from "@remotion/bundler";
 import { renderMedia, selectComposition } from "@remotion/renderer";
 import path from "path";
-import os from "os";
+
+interface ClipConfig {
+  id: string;
+  src: string;
+  duration: number;
+  crossfadeDuration: number;
+}
 
 interface RenderConfig {
-  videoSrc: string;
+  clips: ClipConfig[];
   overlaySrc: string;
   overlayX: number;
   overlayY: number;
@@ -14,7 +20,6 @@ interface RenderConfig {
   fadeDuration: number;
   videoWidth: number;
   videoHeight: number;
-  videoDuration: number;
   fps: number;
   outputPath: string;
   summaryEnabled: boolean;
@@ -41,13 +46,28 @@ export async function renderVideo(
     enableCaching: false,
   });
 
-  const videoDurationInFrames = Math.round(config.videoDuration * config.fps);
+  // Calculate total clip frames accounting for crossfade overlaps
+  let totalClipFrames = 0;
+  for (let i = 0; i < config.clips.length; i++) {
+    totalClipFrames += Math.round(config.clips[i].duration * config.fps);
+    if (i > 0) {
+      totalClipFrames -= Math.round(config.clips[i].crossfadeDuration * config.fps);
+    }
+  }
+  totalClipFrames = Math.max(1, totalClipFrames);
+
   const summaryDurationInFrames = Math.round(config.summaryDuration * config.fps);
-  const totalDurationInFrames = videoDurationInFrames + (config.summaryEnabled ? summaryDurationInFrames : 0);
+  const totalDurationInFrames = totalClipFrames + (config.summaryEnabled ? summaryDurationInFrames : 0);
+
+  const clips = config.clips.map((c) => ({
+    src: c.src,
+    durationInFrames: Math.max(1, Math.round(c.duration * config.fps)),
+    crossfadeDurationInFrames: Math.round(c.crossfadeDuration * config.fps),
+  }));
 
   const inputProps = {
-    videoOverlayProps: {
-      videoSrc: config.videoSrc,
+    clips,
+    overlayProps: {
       overlaySrc: config.overlaySrc,
       overlayX: config.overlayX,
       overlayY: config.overlayY,
@@ -56,7 +76,6 @@ export async function renderVideo(
       overlayDuration: config.overlayDuration,
       fadeDuration: config.fadeDuration,
     },
-    videoDurationInFrames,
     summarySlideProps: { items: config.summaryItems },
     summaryDurationInFrames,
     summaryEnabled: config.summaryEnabled,
