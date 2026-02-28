@@ -1,4 +1,5 @@
 import { useReducer } from "react";
+import type { CaptionSegment, CaptionPosition } from "../types";
 
 export interface SummaryItem {
   id: string;
@@ -15,6 +16,8 @@ export interface Clip {
   duration: number;
   fps: number;
   crossfadeDuration: number;
+  captions: CaptionSegment[];
+  captionStatus: "idle" | "transcribing" | "done" | "error";
 }
 
 export interface OverlayState {
@@ -34,6 +37,11 @@ export interface OverlayState {
   activeTab: "overlay" | "summary";
   summaryItems: SummaryItem[];
   summaryDuration: number;
+  captionsEnabled: boolean;
+  captionFontSize: number;
+  captionColor: string;
+  captionPosition: CaptionPosition;
+  captionMaxWords: number;
 }
 
 export function totalVideoDuration(clips: Clip[]): number {
@@ -65,7 +73,17 @@ type Action =
   | { type: "ADD_SUMMARY_ITEM" }
   | { type: "REMOVE_SUMMARY_ITEM"; id: string }
   | { type: "UPDATE_SUMMARY_ITEM"; id: string; emoji?: string; text?: string }
-  | { type: "SET_SUMMARY_DURATION"; duration: number };
+  | { type: "SET_SUMMARY_DURATION"; duration: number }
+  | { type: "SET_CAPTIONS_ENABLED"; enabled: boolean }
+  | { type: "SET_CAPTION_FONT_SIZE"; fontSize: number }
+  | { type: "SET_CAPTION_COLOR"; color: string }
+  | { type: "SET_CAPTION_POSITION"; position: CaptionPosition }
+  | { type: "SET_CAPTION_MAX_WORDS"; maxWords: number }
+  | { type: "SET_CLIP_CAPTION_STATUS"; clipId: string; status: "idle" | "transcribing" | "done" | "error" }
+  | { type: "SET_CLIP_CAPTIONS"; clipId: string; captions: CaptionSegment[] }
+  | { type: "UPDATE_CAPTION_TEXT"; clipId: string; captionId: string; text: string };
+
+export type { Action as OverlayAction };
 
 const initialState: OverlayState = {
   clips: [],
@@ -84,6 +102,11 @@ const initialState: OverlayState = {
   activeTab: "overlay",
   summaryItems: [],
   summaryDuration: 5,
+  captionsEnabled: false,
+  captionFontSize: 48,
+  captionColor: "#FFFFFF",
+  captionPosition: "bottom",
+  captionMaxWords: 10,
 };
 
 function deriveDimsFromFirstClip(clips: Clip[], state: OverlayState): Partial<OverlayState> {
@@ -107,6 +130,8 @@ function reducer(state: OverlayState, action: Action): OverlayState {
         duration: 0,
         fps: 0,
         crossfadeDuration: 0.5,
+        captions: [],
+        captionStatus: "idle",
       }));
       const allClips = [...state.clips, ...newClips];
       return { ...state, clips: allClips, ...deriveDimsFromFirstClip(allClips, state) };
@@ -192,6 +217,41 @@ function reducer(state: OverlayState, action: Action): OverlayState {
       };
     case "SET_SUMMARY_DURATION":
       return { ...state, summaryDuration: action.duration };
+    case "SET_CAPTIONS_ENABLED":
+      return { ...state, captionsEnabled: action.enabled };
+    case "SET_CAPTION_FONT_SIZE":
+      return { ...state, captionFontSize: action.fontSize };
+    case "SET_CAPTION_COLOR":
+      return { ...state, captionColor: action.color };
+    case "SET_CAPTION_POSITION":
+      return { ...state, captionPosition: action.position };
+    case "SET_CAPTION_MAX_WORDS":
+      return { ...state, captionMaxWords: action.maxWords };
+    case "SET_CLIP_CAPTION_STATUS": {
+      const clips = state.clips.map((c) =>
+        c.id === action.clipId ? { ...c, captionStatus: action.status } : c
+      );
+      return { ...state, clips };
+    }
+    case "SET_CLIP_CAPTIONS": {
+      const clips = state.clips.map((c) =>
+        c.id === action.clipId ? { ...c, captions: action.captions, captionStatus: "done" as const } : c
+      );
+      return { ...state, clips };
+    }
+    case "UPDATE_CAPTION_TEXT": {
+      const clips = state.clips.map((c) =>
+        c.id === action.clipId
+          ? {
+              ...c,
+              captions: c.captions.map((cap) =>
+                cap.id === action.captionId ? { ...cap, text: action.text } : cap
+              ),
+            }
+          : c
+      );
+      return { ...state, clips };
+    }
     default:
       return state;
   }

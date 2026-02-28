@@ -10,6 +10,20 @@ interface ClipTimelineProps {
 
 const COLORS = ["#FF5C2A", "#2A8FFF", "#2AFF5C", "#FF2A8F", "#FFD02A", "#8F2AFF"];
 
+function clipDisplayName(filePath: string): string {
+  const parts = filePath.split("/");
+  const full = parts[parts.length - 1] || filePath;
+  const maxLen = 18;
+  if (full.length <= maxLen) return full;
+  const dotIdx = full.lastIndexOf(".");
+  if (dotIdx <= 0) return full.slice(0, maxLen - 3) + "...";
+  const name = full.slice(0, dotIdx);
+  const ext = full.slice(dotIdx);
+  const available = maxLen - ext.length - 3;
+  if (available <= 0) return full.slice(0, maxLen - 3) + "...";
+  return name.slice(0, available) + "..." + ext;
+}
+
 export const ClipTimeline: React.FC<ClipTimelineProps> = ({
   clips,
   fps,
@@ -66,7 +80,7 @@ export const ClipTimeline: React.FC<ClipTimelineProps> = ({
                 padding: "0 4px",
               }}
             >
-              Clip {i + 1}
+              {clipDisplayName(clip.filePath)}
             </span>
           </div>
         );

@@ -9,6 +9,21 @@ interface ClipConfig {
   crossfadeDuration: number;
 }
 
+interface CaptionSegment {
+  id: string;
+  start: number;
+  end: number;
+  text: string;
+}
+
+interface CaptionSettings {
+  enabled: boolean;
+  fontSize: number;
+  color: string;
+  position: "top" | "center" | "bottom";
+  maxWords: number;
+}
+
 interface RenderConfig {
   clips: ClipConfig[];
   overlaySrc: string;
@@ -25,6 +40,8 @@ interface RenderConfig {
   summaryEnabled: boolean;
   summaryItems: Array<{ id: string; emoji: string; text: string }>;
   summaryDuration: number;
+  captionSettings?: CaptionSettings;
+  clipCaptions?: Array<{ clipId: string; captions: CaptionSegment[] }>;
 }
 
 export async function renderVideo(
@@ -59,10 +76,19 @@ export async function renderVideo(
   const summaryDurationInFrames = Math.round(config.summaryDuration * config.fps);
   const totalDurationInFrames = totalClipFrames + (config.summaryEnabled ? summaryDurationInFrames : 0);
 
+  // Build a map of clipId -> captions for merging
+  const captionsMap = new Map<string, CaptionSegment[]>();
+  if (config.clipCaptions) {
+    for (const cc of config.clipCaptions) {
+      captionsMap.set(cc.clipId, cc.captions);
+    }
+  }
+
   const clips = config.clips.map((c) => ({
     src: c.src,
     durationInFrames: Math.max(1, Math.round(c.duration * config.fps)),
     crossfadeDurationInFrames: Math.round(c.crossfadeDuration * config.fps),
+    captions: captionsMap.get(c.id) || [],
   }));
 
   const inputProps = {
@@ -79,6 +105,13 @@ export async function renderVideo(
     summarySlideProps: { items: config.summaryItems },
     summaryDurationInFrames,
     summaryEnabled: config.summaryEnabled,
+    captionSettings: config.captionSettings || {
+      enabled: false,
+      fontSize: 48,
+      color: "#FFFFFF",
+      position: "bottom",
+      maxWords: 10,
+    },
   };
 
   const composition = await selectComposition({

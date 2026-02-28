@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Player } from "@remotion/player";
 import { FinalVideo } from "../compositions/FinalVideo";
 import { SummarySlide } from "./SummarySlide";
@@ -60,11 +60,52 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ state, playerRef }
   const totalSec = totalVideoDuration(state.clips);
   const totalFrames = Math.max(1, Math.round(totalSec * state.fps));
 
-  const clips = state.clips.map((c) => ({
-    src: c.src,
-    durationInFrames: Math.max(1, Math.round(c.duration * state.fps)),
-    crossfadeDurationInFrames: Math.round(c.crossfadeDuration * state.fps),
-  }));
+  // Memoize inputProps to avoid unnecessary Player re-renders
+  const inputProps = useMemo(() => {
+    const clips = state.clips.map((c) => ({
+      src: c.src,
+      durationInFrames: Math.max(1, Math.round(c.duration * state.fps)),
+      crossfadeDurationInFrames: Math.round(c.crossfadeDuration * state.fps),
+      captions: c.captions || [],
+    }));
+
+    return {
+      clips,
+      overlayProps: {
+        overlaySrc: "",
+        overlayX: state.overlayX,
+        overlayY: state.overlayY,
+        overlayWidth: state.overlayWidth,
+        overlayHeight: state.overlayHeight,
+        overlayDuration: state.overlayDuration,
+        fadeDuration: state.fadeDuration,
+      },
+      summarySlideProps: { items: [] as any[] },
+      summaryDurationInFrames: 0,
+      summaryEnabled: false,
+      captionSettings: {
+        enabled: state.captionsEnabled,
+        fontSize: state.captionFontSize,
+        color: state.captionColor,
+        position: state.captionPosition,
+        maxWords: state.captionMaxWords,
+      },
+    };
+  }, [
+    state.clips,
+    state.fps,
+    state.overlayX,
+    state.overlayY,
+    state.overlayWidth,
+    state.overlayHeight,
+    state.overlayDuration,
+    state.fadeDuration,
+    state.captionsEnabled,
+    state.captionFontSize,
+    state.captionColor,
+    state.captionPosition,
+    state.captionMaxWords,
+  ]);
 
   return (
     <Player
@@ -81,21 +122,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ state, playerRef }
         overflow: "hidden",
       }}
       controls
-      inputProps={{
-        clips,
-        overlayProps: {
-          overlaySrc: "",
-          overlayX: state.overlayX,
-          overlayY: state.overlayY,
-          overlayWidth: state.overlayWidth,
-          overlayHeight: state.overlayHeight,
-          overlayDuration: state.overlayDuration,
-          fadeDuration: state.fadeDuration,
-        },
-        summarySlideProps: { items: [] },
-        summaryDurationInFrames: 0,
-        summaryEnabled: false,
-      }}
+      inputProps={inputProps}
     />
   );
 };

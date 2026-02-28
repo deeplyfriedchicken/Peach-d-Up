@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   selectPng: () => ipcRenderer.invoke("select-png"),
   selectSavePath: () => ipcRenderer.invoke("select-save-path"),
   exportVideo: (config: any) => ipcRenderer.invoke("export-video", config),
+  transcribeAudio: (filePath: string) => ipcRenderer.invoke("transcribe-audio", filePath),
   onExportProgress: (cb: (progress: number) => void) => {
     const handler = (_event: any, progress: number) => cb(progress);
     ipcRenderer.on("export-progress", handler);

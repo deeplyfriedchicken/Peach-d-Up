@@ -57,6 +57,13 @@ export const RemotionRoot: React.FC = () => {
           summarySlideProps: { items: [] },
           summaryDurationInFrames: 150,
           summaryEnabled: false,
+          captionSettings: {
+            enabled: false,
+            fontSize: 48,
+            color: "#FFFFFF",
+            position: "bottom" as const,
+            maxWords: 10,
+          },
         }}
       />
     </>

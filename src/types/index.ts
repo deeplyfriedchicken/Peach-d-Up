@@ -5,6 +5,23 @@ export interface ClipConfig {
   crossfadeDuration: number;
 }
 
+export interface CaptionSegment {
+  id: string;
+  start: number; // seconds relative to clip start
+  end: number;
+  text: string;
+}
+
+export type CaptionPosition = "top" | "center" | "bottom";
+
+export interface CaptionSettings {
+  enabled: boolean;
+  fontSize: number;
+  color: string;
+  position: CaptionPosition;
+  maxWords: number;
+}
+
 export interface OverlayConfig {
   clips: ClipConfig[];
   overlaySrc: string;
@@ -33,6 +50,8 @@ export interface ExportConfig extends OverlayConfig {
   summaryEnabled: boolean;
   summaryItems: Array<{ id: string; emoji: string; text: string }>;
   summaryDuration: number;
+  captionSettings: CaptionSettings;
+  clipCaptions: Array<{ clipId: string; captions: CaptionSegment[] }>;
 }
 
 declare global {
@@ -43,6 +62,7 @@ declare global {
       selectSavePath: () => Promise<string | null>;
       exportVideo: (config: ExportConfig) => Promise<{ success: boolean; error?: string }>;
       onExportProgress: (cb: (progress: number) => void) => () => void;
+      transcribeAudio: (filePath: string) => Promise<{ success: boolean; segments: CaptionSegment[]; error?: string }>;
     };
   }
 }

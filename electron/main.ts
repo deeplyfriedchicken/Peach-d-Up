@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import path from "path";
 import { startFileServer, registerFile } from "./fileServer";
 import { renderVideo } from "./renderWorker";
+import { transcribeVideo } from "./transcribe";
 
 let mainWindow: BrowserWindow | null = null;
 let fileServerPort: number;
@@ -72,6 +73,15 @@ ipcMain.handle("select-save-path", async () => {
   });
   if (result.canceled || !result.filePath) return null;
   return result.filePath;
+});
+
+ipcMain.handle("transcribe-audio", async (_event, filePath: string) => {
+  try {
+    const segments = await transcribeVideo(filePath);
+    return { success: true, segments };
+  } catch (err: any) {
+    return { success: false, segments: [], error: err.message };
+  }
 });
 
 ipcMain.handle("export-video", async (event, config) => {

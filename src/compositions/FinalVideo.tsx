@@ -10,11 +10,15 @@ import {
   useVideoConfig,
 } from "remotion";
 import { SummarySlide, type SummarySlideProps } from "../components/SummarySlide";
+import { CaptionLayer } from "../components/CaptionLayer";
+import { computeClipStarts } from "../utils/clipStarts";
+import type { CaptionSegment, CaptionSettings } from "../types";
 
 interface ClipEntry {
   src: string;
   durationInFrames: number;
   crossfadeDurationInFrames: number;
+  captions?: CaptionSegment[];
 }
 
 interface OverlayProps {
@@ -33,25 +37,9 @@ export interface FinalVideoProps {
   summarySlideProps: SummarySlideProps;
   summaryDurationInFrames: number;
   summaryEnabled: boolean;
+  captionSettings?: CaptionSettings;
 }
 
-/**
- * Compute the starting frame for each clip, accounting for crossfade overlaps.
- * Clip 0 starts at frame 0. Each subsequent clip starts at
- * (previous start + previous duration - crossfade overlap).
- */
-function computeClipStarts(clips: ClipEntry[]): number[] {
-  const starts: number[] = [];
-  let cursor = 0;
-  for (let i = 0; i < clips.length; i++) {
-    if (i > 0) {
-      cursor -= clips[i].crossfadeDurationInFrames;
-    }
-    starts.push(cursor);
-    cursor += clips[i].durationInFrames;
-  }
-  return starts;
-}
 
 const ClipSegment: React.FC<{
   src: string;
@@ -138,6 +126,7 @@ export const FinalVideo: React.FC<FinalVideoProps> = ({
   summarySlideProps,
   summaryDurationInFrames,
   summaryEnabled,
+  captionSettings,
 }) => {
   const starts = computeClipStarts(clips);
 
@@ -176,6 +165,23 @@ export const FinalVideo: React.FC<FinalVideoProps> = ({
           <AbsoluteFill style={{ zIndex: 1 }}>
             <OverlayLayer {...overlayProps} />
           </AbsoluteFill>
+
+          {/* Caption layer */}
+          {captionSettings?.enabled && (
+            <AbsoluteFill style={{ zIndex: 2 }}>
+              <CaptionLayer
+                clips={clips.map((clip, i) => ({
+                  captions: clip.captions || [],
+                  startFrame: starts[i],
+                  durationInFrames: clip.durationInFrames,
+                }))}
+                fontSize={captionSettings.fontSize}
+                color={captionSettings.color}
+                position={captionSettings.position}
+                maxWords={captionSettings.maxWords}
+              />
+            </AbsoluteFill>
+          )}
         </AbsoluteFill>
       </Series.Sequence>
 

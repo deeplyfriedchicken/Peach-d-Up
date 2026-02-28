@@ -1,5 +1,6 @@
-import React, { useCallback, useRef, useState, useEffect } from "react";
+import React, { useCallback, useRef, useState, useEffect, useMemo } from "react";
 import { useOverlayState, totalVideoDuration } from "./hooks/useOverlayState";
+import { computeClipStarts } from "./utils/clipStarts";
 import { useClipsMeta } from "./hooks/useVideoMeta";
 import { FileSelector } from "./components/FileSelector";
 import { ClipList } from "./components/ClipList";
@@ -11,6 +12,8 @@ import { OverlayInputs } from "./components/OverlayInputs";
 import { ExportPanel } from "./components/ExportPanel";
 import { TabBar } from "./components/TabBar";
 import { SummaryInputs } from "./components/SummaryInputs";
+import { CaptionControls } from "./components/CaptionControls";
+import { useTranscription } from "./hooks/useTranscription";
 
 export const App: React.FC = () => {
   const [state, dispatch] = useOverlayState();
@@ -43,6 +46,26 @@ export const App: React.FC = () => {
   useClipsMeta(state.clips, (id, meta) => {
     dispatch({ type: "SET_CLIP_META", id, ...meta });
   });
+
+  useTranscription(state.clips, state.captionsEnabled, dispatch);
+
+  const clipStartFrames = useMemo(
+    () =>
+      computeClipStarts(
+        state.clips.map((c) => ({
+          durationInFrames: Math.round(c.duration * state.fps),
+          crossfadeDurationInFrames: Math.round(c.crossfadeDuration * state.fps),
+        }))
+      ),
+    [state.clips, state.fps]
+  );
+
+  const handleSeek = useCallback(
+    (frame: number) => {
+      playerRef.current?.seekTo(frame);
+    },
+    []
+  );
 
   const handleAddClips = useCallback(async () => {
     if (!window.electronAPI) return;
@@ -82,6 +105,7 @@ export const App: React.FC = () => {
         display: "flex",
         flexDirection: "column",
         height: "100vh",
+        overflow: "hidden",
         background: "#111",
         color: "#eee",
         fontFamily: "'Inter', -apple-system, sans-serif",
@@ -101,27 +125,30 @@ export const App: React.FC = () => {
       <div
         style={{
           flex: 1,
+          minHeight: 0,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           padding: 24,
         }}
       >
-        <div style={{ position: "relative", width: "100%", maxWidth: 900 }}>
-          <PlayerPreview state={state} playerRef={playerRef} />
-          {state.activeTab === "overlay" && (
-            <OverlayEditor
-              overlayX={state.overlayX}
-              overlayY={state.overlayY}
-              overlayWidth={state.overlayWidth}
-              overlayHeight={state.overlayHeight}
-              overlaySrc={state.overlaySrc}
-              visible={!!overlayVisible}
-              opacity={overlayOpacity}
-              onPositionChange={(x, y) => dispatch({ type: "SET_OVERLAY_POSITION", x, y })}
-              onSizeChange={(w, h) => dispatch({ type: "SET_OVERLAY_SIZE", width: w, height: h })}
-            />
-          )}
+        <div style={{ width: "100%", maxWidth: 900 }}>
+          <div style={{ position: "relative", overflow: "visible" }}>
+            <PlayerPreview state={state} playerRef={playerRef} />
+            {state.activeTab === "overlay" && (
+              <OverlayEditor
+                overlayX={state.overlayX}
+                overlayY={state.overlayY}
+                overlayWidth={state.overlayWidth}
+                overlayHeight={state.overlayHeight}
+                overlaySrc={state.overlaySrc}
+                visible={!!overlayVisible}
+                opacity={overlayOpacity}
+                onPositionChange={(x, y) => dispatch({ type: "SET_OVERLAY_POSITION", x, y })}
+                onSizeChange={(w, h) => dispatch({ type: "SET_OVERLAY_SIZE", width: w, height: h })}
+              />
+            )}
+          </div>
           {state.activeTab === "overlay" && state.clips.length > 0 && (
             <ClipTimeline
               clips={state.clips}
@@ -162,6 +189,20 @@ export const App: React.FC = () => {
               onRemoveClip={(id) => dispatch({ type: "REMOVE_CLIP", id })}
               onReorderClips={(from, to) => dispatch({ type: "REORDER_CLIPS", fromIndex: from, toIndex: to })}
               onCrossfadeChange={(id, dur) => dispatch({ type: "SET_CLIP_CROSSFADE", id, crossfadeDuration: dur })}
+            />
+
+            <CaptionControls
+              captionsEnabled={state.captionsEnabled}
+              captionFontSize={state.captionFontSize}
+              captionColor={state.captionColor}
+              captionPosition={state.captionPosition}
+              captionMaxWords={state.captionMaxWords}
+              clips={state.clips}
+              dispatch={dispatch}
+              currentFrame={currentFrame}
+              fps={state.fps}
+              onSeek={handleSeek}
+              clipStartFrames={clipStartFrames}
             />
 
             <FileSelector

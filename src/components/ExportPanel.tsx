@@ -51,6 +51,17 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({ state, disabled }) => 
       summaryEnabled,
       summaryItems: state.summaryItems,
       summaryDuration: state.summaryDuration,
+      captionSettings: {
+        enabled: state.captionsEnabled,
+        fontSize: state.captionFontSize,
+        color: state.captionColor,
+        position: state.captionPosition,
+        maxWords: state.captionMaxWords,
+      },
+      clipCaptions: state.clips.map((c) => ({
+        clipId: c.id,
+        captions: c.captions,
+      })),
     });
 
     setExporting(false);
