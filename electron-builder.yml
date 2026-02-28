@@ -1,5 +1,5 @@
-appId: com.tbdfit.overlay-editor
-productName: TBD Fit Overlay Editor
+appId: com.peachdup.studio
+productName: Peach'd Up Studio
 directories:
   output: release
   buildResources: build
@@ -11,6 +11,11 @@ files:
   - package.json
   - remotion.config.ts
   - node_modules/**/*
+extraResources:
+  - from: "resources/whisper"
+    to: "whisper"
+    filter:
+      - "**/*"
 afterPack: ./scripts/fix-remotion-dylibs.js
 mac:
   category: public.app-category.video

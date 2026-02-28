@@ -1,7 +1,7 @@
 {
-  "name": "tbd-fit",
-  "version": "0.1.0",
-  "description": "Video PNG overlay editor",
+  "name": "peachd-up-studio",
+  "version": "0.2.0",
+  "description": "Peach'd Up Studio — Video overlay editor",
   "main": "electron-dist/main.js",
   "repository": {},
   "license": "UNLICENSED",
@@ -18,7 +18,8 @@
     "react-dom": "19.2.3",
     "react-rnd": "10.5.2",
     "remotion": "4.0.427",
-    "tailwindcss": "4.0.0"
+    "tailwindcss": "4.0.0",
+    "whisper-node": "^1.1.1"
   },
   "devDependencies": {
     "@remotion/eslint-config-flat": "4.0.427",
