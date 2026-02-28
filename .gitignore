@@ -3,6 +3,11 @@ dist
 .DS_Store
 .env
 
+# CI-built binaries (not committed)
+resources/ffmpeg/
+resources/whisper/main
+resources/whisper/ggml-*.bin
+
 # Electron build output
 electron-dist/
 release/

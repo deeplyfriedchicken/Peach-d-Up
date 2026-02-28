@@ -40,6 +40,14 @@ jobs:
           cp node_modules/whisper-node/lib/whisper.cpp/main resources/whisper/
           cp node_modules/whisper-node/lib/whisper.cpp/models/ggml-base.en.bin resources/whisper/
 
+      - name: Copy ffmpeg to resources
+        run: |
+          mkdir -p resources/ffmpeg
+          FFMPEG_SRC=node_modules/@remotion/compositor-darwin-arm64/ffmpeg
+          cp "$FFMPEG_SRC" resources/ffmpeg/
+          # Copy any dylibs ffmpeg depends on
+          find "$(dirname "$FFMPEG_SRC")" -name "*.dylib" -exec cp {} resources/ffmpeg/ \;
+
       - name: Build
         run: npm run build
 
