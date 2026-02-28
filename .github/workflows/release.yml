@@ -40,13 +40,23 @@ jobs:
           cp node_modules/whisper-node/lib/whisper.cpp/main resources/whisper/
           cp node_modules/whisper-node/lib/whisper.cpp/models/ggml-base.en.bin resources/whisper/
 
-      - name: Copy ffmpeg to resources
+      - name: Copy ffmpeg to resources and fix dylib paths
         run: |
           mkdir -p resources/ffmpeg
-          FFMPEG_SRC=node_modules/@remotion/compositor-darwin-arm64/ffmpeg
-          cp "$FFMPEG_SRC" resources/ffmpeg/
-          # Copy any dylibs ffmpeg depends on
-          find "$(dirname "$FFMPEG_SRC")" -name "*.dylib" -exec cp {} resources/ffmpeg/ \;
+          REMOTION_DIR=node_modules/@remotion/compositor-darwin-arm64
+          cp "$REMOTION_DIR/ffmpeg" resources/ffmpeg/
+          find "$REMOTION_DIR" -name "*.dylib" -exec cp {} resources/ffmpeg/ \;
+
+          # Rewrite dylib load paths so ffmpeg finds them via @loader_path
+          # instead of relative paths (which macOS blocks in hardened apps)
+          cd resources/ffmpeg
+          for dylib in *.dylib; do
+            install_name_tool -id "@loader_path/$dylib" "$dylib"
+            # Update references within other dylibs
+            for other in *.dylib ffmpeg; do
+              install_name_tool -change "$dylib" "@loader_path/$dylib" "$other" 2>/dev/null || true
+            done
+          done
 
       - name: Build
         run: npm run build
