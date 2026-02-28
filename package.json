@@ -3,7 +3,11 @@
   "version": "0.2.0",
   "description": "Peach'd Up Studio — Video overlay editor",
   "main": "electron-dist/main.js",
-  "repository": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kevincunananex/Peach-d-Up.git"
+  },
+"author": "deeplyfriedchicken",
   "license": "UNLICENSED",
   "private": true,
   "dependencies": {
