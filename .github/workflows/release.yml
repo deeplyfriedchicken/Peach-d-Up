@@ -24,6 +24,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build whisper.cpp
+        run: |
+          cd node_modules/whisper-node/lib/whisper.cpp
+          make
+
+      - name: Download whisper model
+        run: |
+          MODEL_DIR=node_modules/whisper-node/lib/whisper.cpp/models
+          curl -L -o "$MODEL_DIR/ggml-base.en.bin" \
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin"
+
+      - name: Copy whisper to resources
+        run: |
+          cp node_modules/whisper-node/lib/whisper.cpp/main resources/whisper/
+          cp node_modules/whisper-node/lib/whisper.cpp/models/ggml-base.en.bin resources/whisper/
+
       - name: Build
         run: npm run build
 
