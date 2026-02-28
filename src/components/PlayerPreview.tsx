@@ -10,6 +10,13 @@ interface PlayerPreviewProps {
   playerRef: React.RefObject<any>;
 }
 
+const playerStyle: React.CSSProperties = {
+  width: "100%",
+  maxHeight: "calc(100vh - 80px)",
+  borderRadius: 12,
+  overflow: "hidden",
+};
+
 export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ state, playerRef }) => {
   if (state.activeTab === "summary") {
     const durationInFrames = Math.max(1, Math.round(state.summaryDuration * state.fps));
@@ -22,12 +29,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ state, playerRef }
         compositionHeight={state.videoHeight}
         durationInFrames={durationInFrames}
         fps={state.fps}
-        style={{
-          width: "100%",
-          maxHeight: "calc(100vh - 80px)",
-          borderRadius: 12,
-          overflow: "hidden",
-        }}
+        style={playerStyle}
         controls
         inputProps={{
           items: state.summaryItems,
@@ -57,38 +59,52 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ state, playerRef }
     );
   }
 
-  const totalSec = totalVideoDuration(state.clips);
-  const totalFrames = Math.max(1, Math.round(totalSec * state.fps));
+  // Memoize inputProps AND totalFrames together so they stay in sync
+  // and don't cause unnecessary Player re-renders
+  const { inputProps, totalFrames } = useMemo(() => {
+    const clips = state.clips.map((c) => {
+      const effDuration = c.duration - c.trimStart - c.trimEnd;
+      const trimStartFrames = Math.round(c.trimStart * state.fps);
+      return {
+        src: c.src,
+        durationInFrames: Math.max(1, Math.round(effDuration * state.fps)),
+        crossfadeDurationInFrames: Math.round(c.crossfadeDuration * state.fps),
+        startFrom: trimStartFrames,
+        captions: (c.captions || [])
+          .filter((cap) => cap.end > c.trimStart && cap.start < c.duration - c.trimEnd)
+          .map((cap) => ({
+            ...cap,
+            start: Math.max(0, cap.start - c.trimStart),
+            end: Math.min(effDuration, cap.end - c.trimStart),
+          })),
+      };
+    });
 
-  // Memoize inputProps to avoid unnecessary Player re-renders
-  const inputProps = useMemo(() => {
-    const clips = state.clips.map((c) => ({
-      src: c.src,
-      durationInFrames: Math.max(1, Math.round(c.duration * state.fps)),
-      crossfadeDurationInFrames: Math.round(c.crossfadeDuration * state.fps),
-      captions: c.captions || [],
-    }));
+    const totalSec = totalVideoDuration(state.clips);
 
     return {
-      clips,
-      overlayProps: {
-        overlaySrc: "",
-        overlayX: state.overlayX,
-        overlayY: state.overlayY,
-        overlayWidth: state.overlayWidth,
-        overlayHeight: state.overlayHeight,
-        overlayDuration: state.overlayDuration,
-        fadeDuration: state.fadeDuration,
-      },
-      summarySlideProps: { items: [] as any[] },
-      summaryDurationInFrames: 0,
-      summaryEnabled: false,
-      captionSettings: {
-        enabled: state.captionsEnabled,
-        fontSize: state.captionFontSize,
-        color: state.captionColor,
-        position: state.captionPosition,
-        maxWords: state.captionMaxWords,
+      totalFrames: Math.max(1, Math.round(totalSec * state.fps)),
+      inputProps: {
+        clips,
+        overlayProps: {
+          overlaySrc: "",
+          overlayX: state.overlayX,
+          overlayY: state.overlayY,
+          overlayWidth: state.overlayWidth,
+          overlayHeight: state.overlayHeight,
+          overlayDuration: state.overlayDuration,
+          fadeDuration: state.fadeDuration,
+        },
+        summarySlideProps: { items: [] as any[] },
+        summaryDurationInFrames: 0,
+        summaryEnabled: false,
+        captionSettings: {
+          enabled: state.captionsEnabled,
+          fontSize: state.captionFontSize,
+          color: state.captionColor,
+          position: state.captionPosition,
+          maxWords: state.captionMaxWords,
+        },
       },
     };
   }, [
@@ -115,12 +131,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ state, playerRef }
       compositionHeight={state.videoHeight}
       durationInFrames={totalFrames}
       fps={state.fps}
-      style={{
-        width: "100%",
-        maxHeight: "calc(100vh - 80px)",
-        borderRadius: 12,
-        overflow: "hidden",
-      }}
+      style={playerStyle}
       controls
       inputProps={inputProps}
     />

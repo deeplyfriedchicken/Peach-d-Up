@@ -16,8 +16,14 @@ export interface Clip {
   duration: number;
   fps: number;
   crossfadeDuration: number;
+  trimStart: number;
+  trimEnd: number;
   captions: CaptionSegment[];
   captionStatus: "idle" | "transcribing" | "done" | "error";
+}
+
+export function effectiveDuration(clip: Clip): number {
+  return clip.duration - clip.trimStart - clip.trimEnd;
 }
 
 export interface OverlayState {
@@ -48,7 +54,7 @@ export function totalVideoDuration(clips: Clip[]): number {
   if (clips.length === 0) return 0;
   let total = 0;
   for (let i = 0; i < clips.length; i++) {
-    total += clips[i].duration;
+    total += effectiveDuration(clips[i]);
     if (i > 0) {
       total -= clips[i].crossfadeDuration;
     }
@@ -81,7 +87,8 @@ type Action =
   | { type: "SET_CAPTION_MAX_WORDS"; maxWords: number }
   | { type: "SET_CLIP_CAPTION_STATUS"; clipId: string; status: "idle" | "transcribing" | "done" | "error" }
   | { type: "SET_CLIP_CAPTIONS"; clipId: string; captions: CaptionSegment[] }
-  | { type: "UPDATE_CAPTION_TEXT"; clipId: string; captionId: string; text: string };
+  | { type: "UPDATE_CAPTION_TEXT"; clipId: string; captionId: string; text: string }
+  | { type: "TRIM_CLIP"; id: string; trimStart: number; trimEnd: number };
 
 export type { Action as OverlayAction };
 
@@ -130,6 +137,8 @@ function reducer(state: OverlayState, action: Action): OverlayState {
         duration: 0,
         fps: 0,
         crossfadeDuration: 0.5,
+        trimStart: 0,
+        trimEnd: 0,
         captions: [],
         captionStatus: "idle",
       }));
@@ -249,6 +258,12 @@ function reducer(state: OverlayState, action: Action): OverlayState {
               ),
             }
           : c
+      );
+      return { ...state, clips };
+    }
+    case "TRIM_CLIP": {
+      const clips = state.clips.map((c) =>
+        c.id === action.id ? { ...c, trimStart: action.trimStart, trimEnd: action.trimEnd } : c
       );
       return { ...state, clips };
     }

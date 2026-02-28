@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import type { Clip } from "../hooks/useOverlayState";
+import { effectiveDuration } from "../hooks/useOverlayState";
 
 interface ClipListProps {
   clips: Clip[];
@@ -121,7 +122,7 @@ export const ClipList: React.FC<ClipListProps> = ({
                 flexShrink: 0,
               }}
             >
-              {formatDuration(clip.duration)}
+              {formatDuration(effectiveDuration(clip))}
             </span>
             <button
               onClick={() => onRemoveClip(clip.id)}

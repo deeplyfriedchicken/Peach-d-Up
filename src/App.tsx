@@ -1,10 +1,11 @@
 import React, { useCallback, useRef, useState, useEffect, useMemo } from "react";
-import { useOverlayState, totalVideoDuration } from "./hooks/useOverlayState";
+import { useOverlayState, totalVideoDuration, effectiveDuration } from "./hooks/useOverlayState";
 import { computeClipStarts } from "./utils/clipStarts";
 import { useClipsMeta } from "./hooks/useVideoMeta";
 import { FileSelector } from "./components/FileSelector";
 import { ClipList } from "./components/ClipList";
 import { ClipTimeline } from "./components/ClipTimeline";
+import type { DraftTrim } from "./components/ClipTimeline";
 import { PlayerPreview } from "./components/PlayerPreview";
 import { OverlayEditor } from "./components/OverlayEditor";
 import { ControlPanel } from "./components/ControlPanel";
@@ -14,13 +15,26 @@ import { TabBar } from "./components/TabBar";
 import { SummaryInputs } from "./components/SummaryInputs";
 import { CaptionControls } from "./components/CaptionControls";
 import { useTranscription } from "./hooks/useTranscription";
+import { TrimConfirmModal } from "./components/TrimConfirmModal";
 
 export const App: React.FC = () => {
   const [state, dispatch] = useOverlayState();
   const playerRef = useRef<any>(null);
   const [currentFrame, setCurrentFrame] = useState(0);
+  const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const [draftTrim, setDraftTrim] = useState<DraftTrim | null>(null);
+  const [showTrimModal, setShowTrimModal] = useState(false);
+  const [pendingDeselect, setPendingDeselect] = useState<string | null>(null);
 
   const videoDuration = totalVideoDuration(state.clips);
+
+  // Check if draft trim differs from committed values
+  const hasTrimChanges = useMemo(() => {
+    if (!draftTrim) return false;
+    const clip = state.clips.find((c) => c.id === draftTrim.clipId);
+    if (!clip) return false;
+    return draftTrim.trimStart !== clip.trimStart || draftTrim.trimEnd !== clip.trimEnd;
+  }, [draftTrim, state.clips]);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -31,6 +45,22 @@ export const App: React.FC = () => {
     player.addEventListener("timeupdate", handler);
     return () => player.removeEventListener("timeupdate", handler);
   }, [state.clips.length]);
+
+  // Escape key handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && selectedClipId) {
+        if (hasTrimChanges) {
+          setShowTrimModal(true);
+        } else {
+          setSelectedClipId(null);
+          setDraftTrim(null);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedClipId, hasTrimChanges]);
 
   const overlayEndFrame = state.overlayDuration * state.fps;
   const fadeStartFrame = overlayEndFrame - state.fadeDuration * state.fps;
@@ -53,7 +83,7 @@ export const App: React.FC = () => {
     () =>
       computeClipStarts(
         state.clips.map((c) => ({
-          durationInFrames: Math.round(c.duration * state.fps),
+          durationInFrames: Math.round(effectiveDuration(c) * state.fps),
           crossfadeDurationInFrames: Math.round(c.crossfadeDuration * state.fps),
         }))
       ),
@@ -97,6 +127,89 @@ export const App: React.FC = () => {
     }
   }, [dispatch]);
 
+  const handleSelectClip = useCallback(
+    (id: string | null) => {
+      if (id === selectedClipId) return;
+      if (hasTrimChanges && selectedClipId) {
+        setPendingDeselect(id);
+        setShowTrimModal(true);
+        return;
+      }
+      setSelectedClipId(id);
+      setDraftTrim(null);
+    },
+    [selectedClipId, hasTrimChanges]
+  );
+
+  const handleTrimCommit = useCallback(() => {
+    if (draftTrim) {
+      const frame = playerRef.current?.getCurrentFrame?.() ?? currentFrame;
+
+      dispatch({
+        type: "TRIM_CLIP",
+        id: draftTrim.clipId,
+        trimStart: draftTrim.trimStart,
+        trimEnd: draftTrim.trimEnd,
+      });
+      setDraftTrim(null);
+
+      // Keep playhead where it is — only clamp if it's now past the new timeline end
+      requestAnimationFrame(() => {
+        const player = playerRef.current;
+        if (!player) return;
+        const totalFrames = player.getDuration?.() ?? Infinity;
+        player.seekTo(Math.min(frame, Math.max(0, totalFrames - 1)));
+      });
+    } else {
+      setDraftTrim(null);
+    }
+  }, [draftTrim, dispatch, currentFrame]);
+
+  const handleTrimDiscard = useCallback(() => {
+    setDraftTrim(null);
+  }, []);
+
+  const handleTrimPreviewSeek = useCallback(
+    (frame: number) => {
+      playerRef.current?.pause();
+      playerRef.current?.seekTo(frame);
+    },
+    []
+  );
+
+  // Modal handlers
+  const handleModalSave = useCallback(() => {
+    handleTrimCommit();
+    setShowTrimModal(false);
+    setSelectedClipId(pendingDeselect);
+    setPendingDeselect(null);
+  }, [handleTrimCommit, pendingDeselect]);
+
+  const handleModalDiscard = useCallback(() => {
+    setDraftTrim(null);
+    setShowTrimModal(false);
+    setSelectedClipId(pendingDeselect);
+    setPendingDeselect(null);
+  }, [pendingDeselect]);
+
+  const handleModalCancel = useCallback(() => {
+    setShowTrimModal(false);
+    setPendingDeselect(null);
+  }, []);
+
+  // Click on main area to deselect
+  const handleMainClick = useCallback(() => {
+    if (selectedClipId) {
+      if (hasTrimChanges) {
+        setPendingDeselect(null);
+        setShowTrimModal(true);
+      } else {
+        setSelectedClipId(null);
+        setDraftTrim(null);
+      }
+    }
+  }, [selectedClipId, hasTrimChanges]);
+
   const totalFrames = Math.max(1, Math.round(videoDuration * state.fps));
 
   return (
@@ -123,6 +236,7 @@ export const App: React.FC = () => {
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
       {/* Left: Player */}
       <div
+        onClick={handleMainClick}
         style={{
           flex: 1,
           minHeight: 0,
@@ -132,7 +246,7 @@ export const App: React.FC = () => {
           padding: 24,
         }}
       >
-        <div style={{ width: "100%", maxWidth: 900 }}>
+        <div style={{ width: "100%", maxWidth: 900, paddingBottom: 24 }} onClick={(e) => e.stopPropagation()}>
           <div style={{ position: "relative", overflow: "visible" }}>
             <PlayerPreview state={state} playerRef={playerRef} />
             {state.activeTab === "overlay" && (
@@ -155,6 +269,13 @@ export const App: React.FC = () => {
               fps={state.fps}
               totalDurationInFrames={totalFrames}
               currentFrame={currentFrame}
+              selectedClipId={selectedClipId}
+              draftTrim={draftTrim}
+              onSelectClip={handleSelectClip}
+              onDraftTrimChange={setDraftTrim}
+              onTrimCommit={handleTrimCommit}
+              onTrimDiscard={handleTrimDiscard}
+              onTrimPreviewSeek={handleTrimPreviewSeek}
             />
           )}
         </div>
@@ -251,6 +372,14 @@ export const App: React.FC = () => {
         <ExportPanel state={state} disabled={state.clips.length === 0} />
       </div>
       </div>
+
+      {showTrimModal && (
+        <TrimConfirmModal
+          onSave={handleModalSave}
+          onDiscard={handleModalDiscard}
+          onCancel={handleModalCancel}
+        />
+      )}
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import React from "react";
 import type { Clip, OverlayAction } from "../hooks/useOverlayState";
+import { effectiveDuration } from "../hooks/useOverlayState";
 import type { CaptionPosition } from "../types";
 import { TranscriptViewer } from "./TranscriptViewer";
 
@@ -200,8 +201,10 @@ export const CaptionControls: React.FC<CaptionControlsProps> = ({
                     clip={clip}
                     clipIndex={i}
                     clipStartFrame={clipStartFrames[i] ?? 0}
+                    clipDurationInFrames={Math.max(1, Math.round(effectiveDuration(clip) * fps))}
                     fps={fps}
                     currentFrame={currentFrame}
+                    maxWords={captionMaxWords}
                     onSeek={onSeek}
                     dispatch={dispatch}
                   />

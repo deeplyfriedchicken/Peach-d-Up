@@ -11,4 +11,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("export-progress", handler);
     return () => ipcRenderer.removeListener("export-progress", handler);
   },
+  showExportComplete: (outputPath: string) => ipcRenderer.invoke("show-export-complete", outputPath),
 });

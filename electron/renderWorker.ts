@@ -7,6 +7,8 @@ interface ClipConfig {
   src: string;
   duration: number;
   crossfadeDuration: number;
+  trimStart: number;
+  trimEnd: number;
 }
 
 interface CaptionSegment {
@@ -63,12 +65,14 @@ export async function renderVideo(
     enableCaching: false,
   });
 
-  // Calculate total clip frames accounting for crossfade overlaps
+  // Calculate total clip frames accounting for crossfade overlaps and trimming
   let totalClipFrames = 0;
   for (let i = 0; i < config.clips.length; i++) {
-    totalClipFrames += Math.round(config.clips[i].duration * config.fps);
+    const c = config.clips[i];
+    const effDuration = c.duration - (c.trimStart || 0) - (c.trimEnd || 0);
+    totalClipFrames += Math.round(effDuration * config.fps);
     if (i > 0) {
-      totalClipFrames -= Math.round(config.clips[i].crossfadeDuration * config.fps);
+      totalClipFrames -= Math.round(c.crossfadeDuration * config.fps);
     }
   }
   totalClipFrames = Math.max(1, totalClipFrames);
@@ -84,12 +88,30 @@ export async function renderVideo(
     }
   }
 
-  const clips = config.clips.map((c) => ({
-    src: c.src,
-    durationInFrames: Math.max(1, Math.round(c.duration * config.fps)),
-    crossfadeDurationInFrames: Math.round(c.crossfadeDuration * config.fps),
-    captions: captionsMap.get(c.id) || [],
-  }));
+  const clips = config.clips.map((c) => {
+    const trimStart = c.trimStart || 0;
+    const trimEnd = c.trimEnd || 0;
+    const effDuration = c.duration - trimStart - trimEnd;
+    const trimEndTime = c.duration - trimEnd;
+
+    // Filter captions to trimmed range and offset times, matching preview behavior
+    const rawCaptions = captionsMap.get(c.id) || [];
+    const filteredCaptions = rawCaptions
+      .filter((cap) => cap.end > trimStart && cap.start < trimEndTime)
+      .map((cap) => ({
+        ...cap,
+        start: Math.max(0, cap.start - trimStart),
+        end: Math.min(effDuration, cap.end - trimStart),
+      }));
+
+    return {
+      src: c.src,
+      durationInFrames: Math.max(1, Math.round(effDuration * config.fps)),
+      crossfadeDurationInFrames: Math.round(c.crossfadeDuration * config.fps),
+      startFrom: Math.round(trimStart * config.fps),
+      captions: filteredCaptions,
+    };
+  });
 
   const inputProps = {
     clips,

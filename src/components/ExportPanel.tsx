@@ -33,6 +33,8 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({ state, disabled }) => 
       src: c.src,
       duration: c.duration,
       crossfadeDuration: c.crossfadeDuration,
+      trimStart: c.trimStart,
+      trimEnd: c.trimEnd,
     }));
 
     const result = await window.electronAPI.exportVideo({
@@ -65,7 +67,9 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({ state, disabled }) => 
     });
 
     setExporting(false);
-    if (!result.success) {
+    if (result.success) {
+      window.electronAPI.showExportComplete?.(outputPath);
+    } else {
       setError(result.error || "Export failed");
     }
   };

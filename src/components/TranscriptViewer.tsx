@@ -1,14 +1,17 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import type { CaptionSegment } from "../types";
 import type { Clip } from "../hooks/useOverlayState";
 import type { OverlayAction } from "../hooks/useOverlayState";
+import { splitSegment } from "../utils/splitCaptions";
+import type { CaptionChunk } from "../utils/splitCaptions";
 
 interface TranscriptViewerProps {
   clip: Clip;
   clipIndex: number;
   clipStartFrame: number;
+  clipDurationInFrames: number;
   fps: number;
   currentFrame: number;
+  maxWords: number;
   onSeek: (frame: number) => void;
   dispatch: React.Dispatch<OverlayAction>;
 }
@@ -100,8 +103,10 @@ export const TranscriptViewer: React.FC<TranscriptViewerProps> = ({
   clip,
   clipIndex,
   clipStartFrame,
+  clipDurationInFrames,
   fps,
   currentFrame,
+  maxWords,
   onSeek,
   dispatch,
 }) => {
@@ -116,20 +121,42 @@ export const TranscriptViewer: React.FC<TranscriptViewerProps> = ({
   const overlayRef = useRef<HTMLDivElement>(null);
   const editMatchRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
-  const captions = clip.captions;
+  // Filter captions to only those within the trimmed range, offset by trimStart
+  const trimmedCaptions = useMemo(() => {
+    const trimEnd = clip.duration - clip.trimEnd;
+    return clip.captions
+      .filter((cap) => cap.end > clip.trimStart && cap.start < trimEnd)
+      .map((cap) => ({
+        ...cap,
+        start: Math.max(0, cap.start - clip.trimStart),
+        end: Math.min(trimEnd - clip.trimStart, cap.end - clip.trimStart),
+      }));
+  }, [clip.captions, clip.trimStart, clip.trimEnd, clip.duration]);
+
+  const captions = trimmedCaptions;
   const displayName = truncateFilename(clip.filePath);
 
-  // Find active segment based on currentFrame
-  const activeSegmentIndex = useMemo(() => {
+  // Split captions into display chunks based on maxWords (matches video overlay)
+  const chunks = useMemo(
+    () => captions.flatMap((seg) => splitSegment(seg, maxWords)),
+    [captions, maxWords]
+  );
+
+  // Find active chunk based on currentFrame — only if playhead is within this clip
+  const activeChunkIndex = useMemo(() => {
     const relativeFrame = currentFrame - clipStartFrame;
+    if (relativeFrame < 0 || relativeFrame >= clipDurationInFrames) return -1;
     const relativeTime = relativeFrame / fps;
-    for (let i = 0; i < captions.length; i++) {
-      if (relativeTime >= captions[i].start && relativeTime < captions[i].end) {
+    for (let i = 0; i < chunks.length; i++) {
+      if (relativeTime >= chunks[i].start && relativeTime < chunks[i].end) {
         return i;
       }
     }
     return -1;
-  }, [currentFrame, clipStartFrame, fps, captions]);
+  }, [currentFrame, clipStartFrame, clipDurationInFrames, fps, chunks]);
+
+  // Keep old name for auto-scroll effect
+  const activeSegmentIndex = activeChunkIndex;
 
   // Auto-scroll to active segment
   useEffect(() => {
@@ -138,13 +165,13 @@ export const TranscriptViewer: React.FC<TranscriptViewerProps> = ({
     }
   }, [activeSegmentIndex, editing]);
 
-  // View mode: search against caption segments
+  // View mode: search against chunks
   const viewSearchResults = useMemo(() => {
     if (editing || !search.trim()) return [];
     const query = search.toLowerCase();
     const results: { segIndex: number; charStart: number; charEnd: number }[] = [];
-    for (let s = 0; s < captions.length; s++) {
-      const text = captions[s].text.toLowerCase();
+    for (let s = 0; s < chunks.length; s++) {
+      const text = chunks[s].text.toLowerCase();
       let pos = 0;
       while (pos < text.length) {
         const idx = text.indexOf(query, pos);
@@ -154,7 +181,7 @@ export const TranscriptViewer: React.FC<TranscriptViewerProps> = ({
       }
     }
     return results;
-  }, [search, captions, editing]);
+  }, [search, chunks, editing]);
 
   // Edit mode: search against flat editText
   const editSearchResults = useMemo(() => {
@@ -199,9 +226,9 @@ export const TranscriptViewer: React.FC<TranscriptViewerProps> = ({
     }
   }, []);
 
-  const handleSegmentClick = useCallback(
-    (seg: CaptionSegment) => {
-      const frame = clipStartFrame + Math.round(seg.start * fps);
+  const handleChunkClick = useCallback(
+    (chunk: CaptionChunk) => {
+      const frame = clipStartFrame + Math.round(chunk.start * fps);
       onSeek(frame);
     },
     [clipStartFrame, fps, onSeek]
@@ -228,16 +255,16 @@ export const TranscriptViewer: React.FC<TranscriptViewerProps> = ({
     setEditing(true);
   }, [captions]);
 
-  // Render highlighted text for a view-mode segment
-  const renderSegmentText = (seg: CaptionSegment, segIndex: number) => {
-    const segMatches = viewSearchResults.filter((r) => r.segIndex === segIndex);
-    if (segMatches.length === 0) return seg.text;
+  // Render highlighted text for a view-mode chunk
+  const renderChunkText = (chunk: CaptionChunk, chunkIndex: number) => {
+    const chunkMatches = viewSearchResults.filter((r) => r.segIndex === chunkIndex);
+    if (chunkMatches.length === 0) return chunk.text;
 
     const parts: React.ReactNode[] = [];
     let cursor = 0;
-    const text = seg.text;
+    const text = chunk.text;
 
-    for (const match of segMatches) {
+    for (const match of chunkMatches) {
       if (match.charStart > cursor) {
         parts.push(text.slice(cursor, match.charStart));
       }
@@ -245,7 +272,7 @@ export const TranscriptViewer: React.FC<TranscriptViewerProps> = ({
       const isCurrent = globalMatchIdx === matchIndex;
       parts.push(
         <span
-          key={`${segIndex}-${match.charStart}`}
+          key={`${chunkIndex}-${match.charStart}`}
           ref={(el) => { matchRefs.current[globalMatchIdx] = el; }}
           style={{
             background: isCurrent ? "#FF5C2A" : "rgba(255,200,0,0.4)",
@@ -436,7 +463,7 @@ export const TranscriptViewer: React.FC<TranscriptViewerProps> = ({
                 style={{
                   ...sharedTextStyle,
                   width: "100%",
-                  minHeight: 60,
+                  height: 160,
                   background: search.trim() ? "transparent" : "#222",
                   border: "1px solid #333",
                   borderRadius: 4,
@@ -450,7 +477,7 @@ export const TranscriptViewer: React.FC<TranscriptViewerProps> = ({
             </div>
           )}
 
-          {/* View mode — transcript segments */}
+          {/* View mode — transcript chunks (split by maxWords) */}
           {!editing && (
             <div
               ref={containerRef}
@@ -462,19 +489,19 @@ export const TranscriptViewer: React.FC<TranscriptViewerProps> = ({
                 gap: 2,
               }}
             >
-              {captions.map((seg, i) => {
-                const isActive = i === activeSegmentIndex;
+              {chunks.map((chunk, i) => {
+                const isActive = i === activeChunkIndex;
                 return (
                   <span
-                    key={seg.id}
+                    key={`${chunk.start}-${i}`}
                     ref={isActive ? activeRef : undefined}
-                    onClick={() => handleSegmentClick(seg)}
+                    onClick={() => handleChunkClick(chunk)}
                     style={{
-                      display: "inline",
+                      display: "block",
                       cursor: "pointer",
-                      fontSize: 11,
-                      lineHeight: 1.5,
-                      padding: "1px 3px",
+                      fontSize: 12,
+                      lineHeight: 1.6,
+                      padding: "4px 6px",
                       borderRadius: 3,
                       color: isActive ? "#fff" : "#ccc",
                       background: isActive
@@ -483,7 +510,7 @@ export const TranscriptViewer: React.FC<TranscriptViewerProps> = ({
                       transition: "background 0.15s",
                     }}
                   >
-                    {renderSegmentText(seg, i)}
+                    {renderChunkText(chunk, i)}
                   </span>
                 );
               })}

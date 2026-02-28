@@ -3,6 +3,8 @@ export interface ClipConfig {
   src: string;
   duration: number;
   crossfadeDuration: number;
+  trimStart: number;
+  trimEnd: number;
 }
 
 export interface CaptionSegment {
@@ -63,6 +65,7 @@ declare global {
       exportVideo: (config: ExportConfig) => Promise<{ success: boolean; error?: string }>;
       onExportProgress: (cb: (progress: number) => void) => () => void;
       transcribeAudio: (filePath: string) => Promise<{ success: boolean; segments: CaptionSegment[]; error?: string }>;
+      showExportComplete: (outputPath: string) => Promise<void>;
     };
   }
 }

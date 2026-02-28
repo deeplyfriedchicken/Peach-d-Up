@@ -1,7 +1,9 @@
 import React from "react";
 import {
   AbsoluteFill,
+  getRemotionEnvironment,
   Img,
+  OffthreadVideo,
   Sequence,
   Series,
   Video,
@@ -18,6 +20,7 @@ interface ClipEntry {
   src: string;
   durationInFrames: number;
   crossfadeDurationInFrames: number;
+  startFrom?: number;
   captions?: CaptionSegment[];
 }
 
@@ -48,7 +51,8 @@ const ClipSegment: React.FC<{
   crossfadeOutFrames: number;
   isFirst: boolean;
   isLast: boolean;
-}> = ({ src, durationInFrames, crossfadeInFrames, crossfadeOutFrames, isFirst, isLast }) => {
+  startFrom?: number;
+}> = ({ src, durationInFrames, crossfadeInFrames, crossfadeOutFrames, isFirst, isLast, startFrom }) => {
   const frame = useCurrentFrame();
 
   let opacity = 1;
@@ -68,9 +72,11 @@ const ClipSegment: React.FC<{
     opacity = Math.min(opacity, fadeOutOpacity);
   }
 
+  const VideoComponent = getRemotionEnvironment().isRendering ? OffthreadVideo : Video;
+
   return (
     <AbsoluteFill style={{ opacity }}>
-      <Video src={src} />
+      <VideoComponent src={src} startFrom={startFrom || 0} />
     </AbsoluteFill>
   );
 };
@@ -157,6 +163,7 @@ export const FinalVideo: React.FC<FinalVideoProps> = ({
                 crossfadeOutFrames={i < clips.length - 1 ? clips[i + 1].crossfadeDurationInFrames : 0}
                 isFirst={i === 0}
                 isLast={i === clips.length - 1}
+                startFrom={clip.startFrom}
               />
             </Sequence>
           ))}
