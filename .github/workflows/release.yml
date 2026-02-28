@@ -52,8 +52,10 @@ jobs:
 
       - name: Copy whisper to resources
         run: |
-          cp node_modules/whisper-node/lib/whisper.cpp/main resources/whisper/
-          cp node_modules/whisper-node/lib/whisper.cpp/models/ggml-base.en.bin resources/whisper/
+          WHISPER_DIR=node_modules/whisper-node/lib/whisper.cpp
+          cp "$WHISPER_DIR/main" resources/whisper/
+          cp "$WHISPER_DIR/models/ggml-base.en.bin" resources/whisper/
+          cp "$WHISPER_DIR/ggml-metal.metal" resources/whisper/
 
       - name: Copy ffmpeg to resources and fix dylib paths
         run: |

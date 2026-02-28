@@ -94,10 +94,12 @@ export async function transcribeVideo(
     );
 
     // Run whisper.cpp directly
+    // Set cwd to whisper dir so it can find ggml-metal.metal
+    const whisperDir = path.dirname(binary);
     const { stdout } = await execFileAsync(
       binary,
       ["-m", modelPath, "-f", tmpWav],
-      { maxBuffer: 10 * 1024 * 1024 }
+      { maxBuffer: 10 * 1024 * 1024, cwd: whisperDir }
     );
 
     // Parse whisper output: lines like "[00:00:00.000 --> 00:00:03.000]   Some text"
