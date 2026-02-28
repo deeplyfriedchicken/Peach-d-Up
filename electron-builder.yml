@@ -26,6 +26,11 @@ mac:
   target:
     - dmg
   artifactName: "${productName}-${version}.${ext}"
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  notarize: true
 dmg:
   contents:
     - x: 130
