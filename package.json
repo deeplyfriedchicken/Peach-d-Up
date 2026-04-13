@@ -7,7 +7,7 @@
     "type": "git",
     "url": "https://github.com/kevincunananex/Peach-d-Up.git"
   },
-"author": "deeplyfriedchicken",
+  "author": "deeplyfriedchicken",
   "license": "UNLICENSED",
   "private": true,
   "dependencies": {
@@ -26,6 +26,7 @@
     "whisper-node": "^1.1.1"
   },
   "devDependencies": {
+    "@changesets/cli": "2.30.0",
     "@remotion/eslint-config-flat": "4.0.427",
     "@types/express": "5.0.6",
     "@types/react": "19.2.7",
@@ -40,6 +41,8 @@
     "vite": "7.3.1"
   },
   "scripts": {
+    "changeset": "changeset",
+    "version": "changeset version",
     "dev": "tsc -p electron/tsconfig.json && concurrently \"vite --config vite.config.ts\" \"electron .\"",
     "dev:studio": "remotion studio",
     "build:renderer": "vite build --config vite.config.ts",

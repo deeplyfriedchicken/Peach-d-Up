@@ -9,7 +9,10 @@ permissions:
 
 jobs:
   release:
+    name: Build and release
     runs-on: macos-latest
+    # Only run when the Version Packages PR is merged
+    if: "contains(github.event.head_commit.message, 'Version Packages')"
 
     steps:
       - name: Checkout
@@ -69,7 +72,6 @@ jobs:
           cd resources/ffmpeg
           for dylib in *.dylib; do
             install_name_tool -id "@loader_path/$dylib" "$dylib"
-            # Update references within other dylibs
             for other in *.dylib ffmpeg; do
               install_name_tool -change "$dylib" "@loader_path/$dylib" "$other" 2>/dev/null || true
             done
@@ -93,8 +95,8 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.version }}-${{ github.run_number }}
-          name: v${{ steps.version.outputs.version }} (build ${{ github.run_number }})
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
           files: release/*.dmg
           generate_release_notes: true
         env:

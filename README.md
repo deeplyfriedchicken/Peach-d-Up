@@ -1,54 +1,54 @@
-# Remotion video
+# Peach'd Up Studio
 
-<p align="center">
-  <a href="https://github.com/remotion-dev/logo">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/remotion-dev/logo/raw/main/animated-logo-banner-dark.apng">
-      <img alt="Animated Remotion Logo" src="https://github.com/remotion-dev/logo/raw/main/animated-logo-banner-light.gif">
-    </picture>
-  </a>
-</p>
+Video overlay editor built with Electron, React, and Remotion.
 
-Welcome to your Remotion project!
+## Development
 
-## Commands
+**Install dependencies**
 
-**Install Dependencies**
-
-```console
-npm i
+```bash
+npm install
 ```
 
-**Start Preview**
+**Start the app**
 
-```console
+```bash
 npm run dev
 ```
 
-**Render video**
+**Lint**
 
-```console
-npx remotion render
+```bash
+npm run lint
 ```
 
-**Upgrade Remotion**
+## Releasing
 
-```console
-npx remotion upgrade
-```
+This project uses [Changesets](https://github.com/changesets/changesets) for version management. Releases are triggered automatically via GitHub Actions.
 
-## Docs
+### How it works
 
-Get started with Remotion by reading the [fundamentals page](https://www.remotion.dev/docs/the-fundamentals).
+1. **Add a changeset with your PR**
+   Every PR that changes behavior should include a changeset describing what changed.
 
-## Help
+   ```bash
+   npm run changeset
+   ```
 
-We provide help on our [Discord server](https://discord.gg/6VzzNDwUwV).
+   Follow the prompts to select `patch`, `minor`, or `major` and write a short description. Commit the generated `.changeset/*.md` file alongside your changes.
 
-## Issues
+2. **Merge your PR to `main`**
+   GitHub Actions will automatically open (or update) a **"Version Packages"** PR that consolidates all pending changesets into a version bump and `CHANGELOG.md` update.
 
-Found an issue with Remotion? [File an issue here](https://github.com/remotion-dev/remotion/issues/new).
+3. **Merge the "Version Packages" PR to release**
+   When you're ready to ship, merge the Version Packages PR. This triggers the release workflow which:
+   - Builds the macOS `.dmg` (with Apple signing and notarization)
+   - Creates a GitHub Release tagged `v<version>`
 
-## License
+### Changeset types
 
-Note that for some entities a company license is needed. [Read the terms here](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md).
+| Type | When to use |
+|------|-------------|
+| `patch` | Bug fixes, minor tweaks |
+| `minor` | New features, non-breaking changes |
+| `major` | Breaking changes |
